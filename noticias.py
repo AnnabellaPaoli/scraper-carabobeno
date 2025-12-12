@@ -8,7 +8,8 @@ from requests.exceptions import HTTPError
 import re
 from collections import Counter
 import os
-#---------------------URLS----------------------------#
+#----------------------------URLS----------------------------#
+
 seccion={
     1:'https://www.el-carabobeno.com/secciones/noticias/nacional/',
     2:'https://www.el-carabobeno.com/secciones/noticias/internacional/',
@@ -16,6 +17,15 @@ seccion={
     4:'https://www.el-carabobeno.com/secciones/noticias/valencia/',
     5:'https://www.el-carabobeno.com/secciones/universidad/',
 }
+
+#--------------------------STOPWORDS--------------------------#
+STOPWORDS = set([
+    'de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'un', 'una', 'por', 'con', 'su', 
+    'para', 'del', 'las', 'al', 'lo', 'se', 'no', 'como', 'más', 'o', 'pero', 'sus', 
+    'le', 'ya', 'hasta', 'si', 'sin', 'sobre', 'este', 'esta', 'estos', 'estas', 'fue', 'ser'
+])
+#-----------------------------DICCIONARIOS Y LISTAS RELEVANTES-----------------------------------#
+
 nombres={
     1:'Nacional',
     2:'Internacional',
@@ -28,7 +38,8 @@ headers = {
     "Accept-Language": "es-ES,es;q=0.9",
     "Referer": "https://www.google.com/"
 }
-
+#Aqui se colocaran las palabras que el usuario desea revisar a la hora de scrapear las noticias
+keywords=[]
 
 #Menu se encarga de poder visualizar las opciones que requerimos al seleccionar la seccion que deseamos scrapear
 def menu():
@@ -52,6 +63,12 @@ def menu():
                 df=pd.DataFrame(noticias)
                 print(df)
                 guardarInformacion(df,sec)
+                palabrasClaves(noticias)
+                salir=input(Fore.CYAN+"Deseas salir del scrip? (s/n)\n")
+                if salir !='n':
+                    print(Fore.WHITE+"Gracias por usar el script\n")
+                    continuar=False
+
             else:
                 print(Fore.RED + "Opcion no valida.")
             
@@ -61,7 +78,7 @@ def menu():
 
 #En este funcion verificamos si ya existe un archivo con nombre determinado y si no lo crea
 def guardarInformacion(df,num):
-    name=f'noticas_{nombres[num].replace(' ','_')}.csv'
+    name=f"noticas_{nombres[num].replace(' ','_')}.csv"
     #Esta funcion que esta incluida en la libreria OS se encarga de revisar si existe un directorio con este nombre
     if os.path.exists(name):
         print("El archivo ya existe asi que sera abierto al final de el mismo para no eliminar los cambios\n")
@@ -70,10 +87,31 @@ def guardarInformacion(df,num):
         print(f"El archivo no existe asi que sera creado{name}\n")
         df.to_csv(name,mode='a',index=False,encoding='utf-8')
         
+    Max_word=contarPalabra(df)
+    print(f"{Max_word.head(15)}")
+        
 #Aqui resivimos que seccion quiere el usuario que sea scrapeada, cuando sera enviada a un ID de telegram y si la persona esta buscando que una palabra sea contenida en un titulo
 def enviarInformacionRelevante():
     pass
-#Esta es la funcion principal ya que se encarga de hacer las peticiones http
+#Esta funcion se encargara de consultar la base de datos de las noticias del dia,para encontrar unas KEYWORDS que el usuario desee revisar
+def palabrasClaves(noticias):
+    
+    for noticia in noticias:
+        titular_limpio = noticia['Titular'].lower()
+    
+        for palabra in keywords:
+            palabra_limpia = palabra.lower().strip()
+            if palabra_limpia in titular_limpio:
+                print(f"ALERTA! Encontre'{palabra}' en: {noticia['Titular']}{noticia['Link']}")
+                
+                # Aqui llamaria a tu funcion de Telegram:
+                # enviar_telegram(noticia['Titular'], noticia['Link'])
+                
+                # Rompemos el ciclo interno (break) para que no te avise 2 veces 
+                break
+    
+#Esta es una de las funciones principales ya que  se encarga de hacer las peticiones http
+
 def analizarInformaion(url):
     try:
         response=requests.get(url,headers=headers)
@@ -101,7 +139,28 @@ def analizarInformaion(url):
     except HTTPError:
         print(f"Se ha presentado un error a la hora de conectar con la pagina {HTTPError}\n")
  
- 
+
+def contarPalabra(df):
+    
+    if df.empty or 'Titular' not in df.columns:
+        print(Fore.RED + "No hay datos para contar palabras.")
+        return pd.DataFrame() # Retorna tabla vacia
+    
+    # Convertir a string todos los titulares para evitar errores si hay datos vacios
+    texto_completo = ' '.join(df['Titular'].astype(str).tolist())
+    # Limpieza: quitar signos y pasar a minusculas
+    texto_limpio = re.sub(r'[^\w\s]', '', texto_completo).lower()
+    palabras = texto_limpio.split()
+    palabras_filtradas = [
+        palabra for palabra in palabras 
+        if palabra not in STOPWORDS and len(palabra) > 2
+    ]
+    conteo_palabras = Counter(palabras_filtradas)
+    
+    df_conteo = pd.DataFrame(conteo_palabras.items(), columns=['Palabra', 'Cantidad'])
+    df_ordenado = df_conteo.sort_values(by='Cantidad', ascending=False)
+    
+    return df_ordenado
     
 if __name__ == "__main__":
     menu()
