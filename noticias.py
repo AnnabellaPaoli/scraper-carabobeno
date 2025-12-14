@@ -47,6 +47,31 @@ def exportarExcelBonito(df, nombre_base):
     
     nombre_archivo = f"{nombre_base}.xlsx"
     
+    if os.path.exists(nombre_archivo):
+        try:
+            print(f"Leyendo histórico de {nombre_archivo}...")
+            # Leemos el Excel que ya existe
+            df_viejo = pd.read_excel(nombre_archivo)
+            # Unimos los datos viejos con los nuevos
+            df_total = pd.concat([df_viejo, df], ignore_index=True)
+            
+            df_total = df_total.drop_duplicates(subset=['Link'], keep='last')
+            
+            print(f"Histórico actualizado. Total de noticias: {len(df_total)}")
+            
+        except Exception as e:
+            print(Fore.RED + f"Error leyendo el archivo anterior (se sobrescribirá): {e}")
+            df_total = df
+        except PermissionError:
+            print(Fore.RED + "\n" + "="*50)
+            print(f"❌ ERROR: No puedo escribir en '{nombre_archivo}'.")
+            print("⚠️  MOTIVO: Tienes el archivo abierto en Excel.")
+            print("👉  SOLUCIÓN: Cierra el archivo Excel y vuelve a intentar.")
+            print("="*50 + "\n")
+
+    else:
+        print("Creando archivo nuevo...")
+        df_total = df
     try:
         writer = pd.ExcelWriter(nombre_archivo, engine='xlsxwriter')
         
@@ -86,11 +111,16 @@ def exportarExcelBonito(df, nombre_base):
 
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, formato_header)
-   
-        worksheet.set_column('A:A', 50, formato_texto) 
-        worksheet.set_column('B:B', 20, formato_texto) 
-        worksheet.set_column('C:C', 40, formato_link)
-
+            
+      
+        
+        worksheet.set_column('A:A', 50, formato_texto) #titulo
+        worksheet.set_column('B:B', 20, formato_texto) #fecha
+        worksheet.set_column('C:C', 40, formato_link)  #Link
+        
+        worksheet.freeze_panes(1, 0)
+        
+        worksheet.autofilter(0, 0, len(df_total), len(df_total.columns) - 1)
         writer.close()
         print(Fore.GREEN + f"--> EXCEL GENERADO EXITOSAMENTE: {nombre_archivo}")
         
