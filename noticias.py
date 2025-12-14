@@ -8,6 +8,7 @@ from requests.exceptions import HTTPError
 import re
 from collections import Counter
 import os
+import xlsxwriter
 #----------------------------URLS----------------------------#
 
 seccion={
@@ -41,6 +42,62 @@ headers = {
 #Aqui se colocaran las palabras que el usuario desea revisar a la hora de scrapear las noticias
 keywords=[]
 
+# Genera un archivo Excel con formato profesional (Encabezados azules, columnas ajustadas)
+def exportarExcelBonito(df, nombre_base):
+    
+    nombre_archivo = f"{nombre_base}.xlsx"
+    
+    try:
+        writer = pd.ExcelWriter(nombre_archivo, engine='xlsxwriter')
+        
+        # Convertimos el dataframe a Excel
+        sheet_name = 'Noticias'
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+        # Obtenemos los objetos para trabajar el formato
+        workbook  = writer.book
+        worksheet = writer.sheets[sheet_name]
+
+        # Formato para encabezados (Azul, Negrita, Texto Blanco)
+        formato_header = workbook.add_format({
+            'bold': True,
+            'text_wrap': True,
+            'valign': 'top',
+            'fg_color': '#0070C0', 
+            'font_color': '#FFFFFF',
+            'border': 1,
+            'align': 'center'
+        })
+        # Formato para el cuerpo del texto
+        formato_texto = workbook.add_format({
+            'text_wrap': True, 
+            'valign': 'top',
+            'border': 1
+        })
+        
+        # Formato para Links (opcional, azul y subrayado)
+        formato_link = workbook.add_format({
+            'font_color': 'blue',
+            'underline': 1,
+            'text_wrap': True,
+            'valign': 'top',
+             'border': 1
+        })
+
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, formato_header)
+   
+        worksheet.set_column('A:A', 50, formato_texto) 
+        worksheet.set_column('B:B', 20, formato_texto) 
+        worksheet.set_column('C:C', 40, formato_link)
+
+        writer.close()
+        print(Fore.GREEN + f"--> EXCEL GENERADO EXITOSAMENTE: {nombre_archivo}")
+        
+    except Exception as e:
+        print(Fore.RED + f"Error generando el Excel: {e}")
+        
+        
 #Menu se encarga de poder visualizar las opciones que requerimos al seleccionar la seccion que deseamos scrapear
 def menu():
     
@@ -86,7 +143,9 @@ def guardarInformacion(df,num):
     else:
         print(f"El archivo no existe asi que sera creado{name}\n")
         df.to_csv(name,mode='a',index=False,encoding='utf-8')
-        
+    
+    print("Generando reporte Excel...")
+    exportarExcelBonito(df, nombres[num])
     Max_word=contarPalabra(df)
     print(f"{Max_word.head(15)}")
         
