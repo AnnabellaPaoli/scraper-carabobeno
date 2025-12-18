@@ -40,7 +40,7 @@ headers = {
     "Referer": "https://www.google.com/"
 }
 #Aqui se colocaran las palabras que el usuario desea revisar a la hora de scrapear las noticias
-keywords=[]
+keywords=['dolar','maduro','petroleo']
 
 # Genera un archivo Excel con formato profesional (Encabezados azules, columnas ajustadas)
 def exportarExcelBonito(df, nombre_base):
@@ -180,8 +180,18 @@ def guardarInformacion(df,num):
     print(f"{Max_word.head(15)}")
         
 #Aqui resivimos que seccion quiere el usuario que sea scrapeada, cuando sera enviada a un ID de telegram y si la persona esta buscando que una palabra sea contenida en un titulo
-def enviarInformacionRelevante():
-    pass
+def enviar_telegram(mensaje):
+    token = "TU_BOT_TOKEN_AQUI" # Pídeselo a @BotFather
+    chat_id = "TU_CHAT_ID_AQUI"   # Pídeselo a @userinfobot
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": mensaje, "parse_mode": "HTML"}
+    
+    try:
+        requests.post(url, data=payload)
+    except Exception as e:
+        print(f"Error enviando a Telegram: {e}")
+
 #Esta funcion se encargara de consultar la base de datos de las noticias del dia,para encontrar unas KEYWORDS que el usuario desee revisar
 def palabrasClaves(noticias):
     
@@ -192,10 +202,14 @@ def palabrasClaves(noticias):
             palabra_limpia = palabra.lower().strip()
             if palabra_limpia in titular_limpio:
                 print(f"ALERTA! Encontre'{palabra}' en: {noticia['Titular']}{noticia['Link']}")
-                
-                # Aqui llamaria a tu funcion de Telegram:
-                # enviar_telegram(noticia['Titular'], noticia['Link'])
-                
+                mensaje= (
+                    f"🚨 <b>Alerta de Noticia:</b> {palabra.upper()}\n\n"
+                    f"📰 <b>{noticia['Titular']}</b>\n"
+                    f"📅 {noticia['Fecha']}\n"
+                    f"🔗 <a href='{noticia['Link']}'>Leer nota completa</a>"
+                )
+             
+                enviar_telegram(mensaje)
                 # Rompemos el ciclo interno (break) para que no te avise 2 veces 
                 break
     
